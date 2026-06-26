@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Telethon
+*.session
+*.session-journal
+
+# Database
+data/*.db
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
