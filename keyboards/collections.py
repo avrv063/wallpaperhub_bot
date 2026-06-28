@@ -67,3 +67,25 @@ def collection_actions_keyboard(collection_id: int):
             )
         ],
     ])
+
+def post_preview_keyboard(collection_id: int):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="✅ Опубликовать",
+                callback_data=f"publish_post:{collection_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔄 Переделать текст",
+                callback_data=f"rebuild_text:{collection_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="⬅️ Назад",
+                callback_data=f"open_collection:{collection_id}"
+            )
+        ],
+    ])

@@ -11,12 +11,17 @@ from repositories.collections import (
     get_draft_collections,
     add_candidate_to_collection,
     get_collection_items,
+    clear_collection_items,
 )
 from keyboards.collections import (
     choose_collection_keyboard,
     collections_list_keyboard,
     collection_actions_keyboard,
 )
+
+from services.post_builder import build_post
+from services.publisher import publish_collection
+from keyboards.collections import post_preview_keyboard
 
 router = Router()
 
@@ -158,20 +163,55 @@ async def open_collection(callback: types.CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data.startswith("build_post:"))
-async def build_post(callback: types.CallbackQuery):
+async def build_post_handler(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
         await callback.answer("Нет доступа.", show_alert=True)
         return
 
     collection_id = int(callback.data.split(":")[1])
+    post = await build_post(collection_id)
+
+    if not post or not post["items"]:
+        await callback.message.answer("В подборке нет изображений.")
+        await callback.answer()
+        return
 
     await callback.message.answer(
-        f"📝 Сборка поста для подборки #{collection_id}\n\n"
-        "Следующим шагом добавим генерацию текста и предпросмотр."
+        f"📝 Черновик поста:\n\n{post['caption']}\n\n"
+        f"Изображений: {len(post['items'])}",
+        reply_markup=post_preview_keyboard(collection_id)
     )
 
     await callback.answer()
 
+@router.callback_query(F.data.startswith("publish_post:"))
+async def publish_post_handler(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа.", show_alert=True)
+        return
+
+    collection_id = int(callback.data.split(":")[1])
+    post = await build_post(collection_id)
+
+    if not post or not post["items"]:
+        await callback.message.answer("Не удалось собрать пост.")
+        await callback.answer()
+        return
+
+    file_paths = [item[2] for item in post["items"]]
+
+    ok = await publish_collection(
+        bot=callback.bot,
+        caption=post["caption"],
+        file_paths=file_paths
+    )
+
+    if ok:
+        await callback.message.answer("✅ Пост опубликован.")
+    else:
+        await callback.message.answer("❌ Не удалось опубликовать пост.")
+
+    await callback.answer()
 
 @router.callback_query(F.data.startswith("clear_collection:"))
 async def clear_collection(callback: types.CallbackQuery):
@@ -181,9 +221,10 @@ async def clear_collection(callback: types.CallbackQuery):
 
     collection_id = int(callback.data.split(":")[1])
 
+    await clear_collection_items(collection_id)
+
     await callback.message.answer(
-        f"🗑 Очистка подборки #{collection_id} пока не подключена.\n"
-        "Следующим шагом сделаем удаление изображений из подборки."
+        f"🗑 Подборка #{collection_id} очищена."
     )
 
     await callback.answer()

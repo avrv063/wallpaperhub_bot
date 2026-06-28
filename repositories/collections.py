@@ -75,3 +75,40 @@ async def get_collection_items(collection_id: int):
             (collection_id,)
         )
         return await cursor.fetchall()
+    
+async def get_collection(collection_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """
+            SELECT id, title, status
+            FROM collections
+            WHERE id = ?
+            """,
+            (collection_id,)
+        )
+        return await cursor.fetchone()
+    
+async def clear_collection_items(collection_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            UPDATE candidates
+            SET status = 'new'
+            WHERE id IN (
+                SELECT candidate_id
+                FROM collection_items
+                WHERE collection_id = ?
+            )
+            """,
+            (collection_id,)
+        )
+
+        await db.execute(
+            """
+            DELETE FROM collection_items
+            WHERE collection_id = ?
+            """,
+            (collection_id,)
+        )
+
+        await db.commit()

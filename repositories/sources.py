@@ -55,3 +55,15 @@ async def update_last_message_id(source_id: int, last_message_id: int):
             (last_message_id, source_id)
         )
         await db.commit()
+
+async def get_active_pinterest_sources():
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            """
+            SELECT id, username, title, url
+            FROM sources
+            WHERE type = 'pinterest' AND status = 'active'
+            ORDER BY id DESC
+            """
+        )
+        return await cursor.fetchall()

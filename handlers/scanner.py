@@ -1,7 +1,7 @@
 from aiogram import Router, types, F
 
 from config import ADMIN_ID
-from services.telegram_scanner import scan_telegram_sources
+from services.source_scanner import scan_all_sources
 
 router = Router()
 
@@ -19,7 +19,7 @@ async def scan_sources(callback: types.CallbackQuery):
     async def progress(text: str):
         await status_message.edit_text(f"🔍 {text}")
 
-    result = await scan_telegram_sources(progress_callback=progress)
+    result = await scan_all_sources(progress_callback=progress)
 
     text = (
         "✅ Проверка завершена\n\n"
