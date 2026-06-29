@@ -22,7 +22,7 @@ def candidate_keyboard(candidate_id: int):
         [
             InlineKeyboardButton(
                 text="➡️ Следующая",
-                callback_data="candidate_next"
+                callback_data=f"candidate_next:{candidate_id}"
             )
         ],
     ])

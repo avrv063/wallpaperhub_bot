@@ -1,5 +1,4 @@
 import hashlib
-import re
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -7,9 +6,12 @@ import aiohttp
 
 from repositories.sources import get_active_pinterest_sources
 from repositories.candidates import add_candidate, candidate_exists
+from services.playwright_client import get_page_image_urls
+
+from services.scan_control import is_scan_cancelled
 
 CANDIDATES_DIR = Path("data/images/candidates")
-LIMIT_PER_SOURCE = 20
+LIMIT_PER_SOURCE = 30
 
 
 def ensure_dirs():
@@ -26,22 +28,6 @@ def source_to_url(source_text: str) -> str:
     return f"https://www.pinterest.com/search/pins/?q={query}"
 
 
-def extract_image_urls(html: str) -> list[str]:
-    urls = re.findall(r'https://i\.pinimg\.com/[^"\']+', html)
-
-    cleaned = []
-
-    for url in urls:
-        url = url.replace("\\u002F", "/")
-        url = url.replace("\\/", "/")
-        url = url.split("?")[0]
-
-        if url not in cleaned and any(ext in url.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-            cleaned.append(url)
-
-    return cleaned
-
-
 def url_to_id(url: str) -> int:
     digest = hashlib.md5(url.encode("utf-8")).hexdigest()
     return int(digest[:12], 16)
@@ -50,14 +36,10 @@ def url_to_id(url: str) -> int:
 async def download_image(session: aiohttp.ClientSession, url: str, path: Path) -> bool:
     try:
         async with session.get(url) as response:
-            print("DOWNLOAD STATUS:", response.status)
-            print("CONTENT TYPE:", response.headers.get("content-type"))
-
             if response.status != 200:
                 return False
 
             content = await response.read()
-            print("CONTENT SIZE:", len(content))
 
             if len(content) < 5_000:
                 return False
@@ -65,8 +47,7 @@ async def download_image(session: aiohttp.ClientSession, url: str, path: Path) -
             path.write_bytes(content)
             return True
 
-    except Exception as e:
-        print("DOWNLOAD ERROR:", e)
+    except Exception:
         return False
 
 
@@ -92,6 +73,9 @@ async def scan_pinterest_sources(progress_callback=None) -> dict:
 
     async with aiohttp.ClientSession(headers=headers) as session:
         for index, source in enumerate(sources, start=1):
+            if is_scan_cancelled():
+                result["errors"].append("Поиск остановлен пользователем.")
+                break
             source_id, username, title, url = source
             source_text = url or username
             page_url = source_to_url(source_text)
@@ -102,30 +86,27 @@ async def scan_pinterest_sources(progress_callback=None) -> dict:
                 )
 
             try:
-                async with session.get(page_url) as response:
-                    html = await response.text()
+                image_urls = await get_page_image_urls(page_url)
+                image_urls = image_urls[:LIMIT_PER_SOURCE]
 
-                image_urls = extract_image_urls(html)[:LIMIT_PER_SOURCE]
-                print("PINTEREST SOURCE:", source_text)
-                print("HTML LENGTH:", len(html))
-                print("IMAGE URLS:", len(image_urls))
                 result["images_found"] += len(image_urls)
 
                 for image_url in image_urls:
+                    if is_scan_cancelled():
+                        result["errors"].append("Поиск остановлен пользователем.")
+                        break
                     image_id = url_to_id(image_url)
 
                     if await candidate_exists(source_id, image_id):
                         continue
 
-                    ext = image_url.split(".")[-1].split("/")[0]
-                    if ext.lower() not in ["jpg", "jpeg", "png", "webp"]:
+                    ext = image_url.split(".")[-1].split("?")[0].lower()
+                    if ext not in ["jpg", "jpeg", "png", "webp"]:
                         ext = "jpg"
 
                     file_path = CANDIDATES_DIR / f"pin_{source_id}_{image_id}.{ext}"
-                    print("IMAGE URL:", image_url)
-                    print("FILE PATH:", file_path)
+
                     downloaded = await download_image(session, image_url, file_path)
-                    print("DOWNLOADED:", downloaded)
 
                     if not downloaded:
                         continue

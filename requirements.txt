@@ -2,3 +2,6 @@ aiogram
 telethon
 python-dotenv
 aiosqlite
+aiohttp
+playwright
+Pillow

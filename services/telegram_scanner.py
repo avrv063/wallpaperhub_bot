@@ -5,6 +5,8 @@ from services.telethon_client import get_telethon_client
 from repositories.sources import get_active_telegram_sources, update_last_message_id
 from repositories.candidates import add_candidate, candidate_exists
 
+from services.scan_control import is_scan_cancelled
+
 
 CANDIDATES_DIR = Path("data/images/candidates")
 SCAN_LIMIT_FIRST_RUN = 100
@@ -64,6 +66,9 @@ async def scan_telegram_sources(progress_callback=None) -> dict:
                 max_seen_id = last_message_id or 0
 
                 async for message in client.iter_messages(entity, limit=limit):
+                    if is_scan_cancelled():
+                        result["errors"].append("Поиск остановлен пользователем.")
+                        break
                     if not message:
                         continue
 

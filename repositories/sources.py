@@ -67,3 +67,30 @@ async def get_active_pinterest_sources():
             """
         )
         return await cursor.fetchall()
+    
+async def delete_source(source_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM sources WHERE id = ?", (source_id,))
+        await db.commit()
+
+
+async def toggle_source_status(source_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT status FROM sources WHERE id = ?",
+            (source_id,)
+        )
+        row = await cursor.fetchone()
+
+        if not row:
+            return None
+
+        new_status = "paused" if row[0] == "active" else "active"
+
+        await db.execute(
+            "UPDATE sources SET status = ? WHERE id = ?",
+            (new_status, source_id)
+        )
+        await db.commit()
+
+        return new_status    

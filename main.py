@@ -11,7 +11,7 @@ from handlers.scanner import router as scanner_router
 from handlers.collections import router as collections_router
 from handlers.candidates import router as candidates_router
 from handlers.start import router as start_router
-
+from handlers.cleanup import router as cleanup_router
 
 async def set_commands(bot: Bot):
     await bot.set_my_commands([
@@ -30,6 +30,7 @@ async def main():
     dp.include_router(scanner_router)
     dp.include_router(collections_router)
     dp.include_router(candidates_router)
+    dp.include_router(cleanup_router)
     dp.include_router(start_router)
 
     await set_commands(bot)

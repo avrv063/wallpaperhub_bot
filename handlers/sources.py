@@ -8,6 +8,9 @@ from config import ADMIN_ID
 from repositories.sources import add_source, get_sources
 from services.telegram_parser import check_telegram_source
 
+from repositories.sources import delete_source, toggle_source_status
+from keyboards.sources import source_card_keyboard
+
 router = Router()
 
 
@@ -140,15 +143,63 @@ async def sources_list(callback: types.CallbackQuery):
         await callback.answer()
         return
 
-    text = "📚 Источники:\n\n"
+    await callback.message.answer("📚 Источники:")
 
     for source_id, source_type, username, title, status, last_message_id in sources:
         if source_type == "telegram":
-            text += f"{source_id}. 🟦 Telegram — @{username} — {status}\n"
+            icon = "🟦"
+            source_label = "Telegram"
+            name = f"@{username}"
         elif source_type == "pinterest":
-            text += f"{source_id}. 🟥 Pinterest — {username} — {status}\n"
+            icon = "🟥"
+            source_label = "Pinterest"
+            name = username
         else:
-            text += f"{source_id}. {source_type} — {username} — {status}\n"
+            icon = "◻️"
+            source_label = source_type
+            name = username
 
-    await callback.message.answer(text)
+        status_text = "активен" if status == "active" else "выключен"
+
+        text = (
+            f"{icon} <b>{source_label}</b>\n\n"
+            f"{name}\n\n"
+            f"Статус: {status_text}"
+        )
+
+        await callback.message.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=source_card_keyboard(source_id)
+        )
+
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("toggle_source:"))
+async def toggle_source(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа.", show_alert=True)
+        return
+
+    source_id = int(callback.data.split(":")[1])
+    new_status = await toggle_source_status(source_id)
+
+    if new_status:
+        await callback.message.answer(f"Источник #{source_id}: {new_status}")
+    else:
+        await callback.message.answer("Источник не найден.")
+
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("delete_source:"))
+async def delete_source_handler(callback: types.CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа.", show_alert=True)
+        return
+
+    source_id = int(callback.data.split(":")[1])
+    await delete_source(source_id)
+
+    await callback.message.answer(f"🗑 Источник #{source_id} удалён.")
     await callback.answer()
