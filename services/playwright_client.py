@@ -1,7 +1,10 @@
 from playwright.async_api import async_playwright
 
 
-async def get_page_image_urls(url: str, scrolls: int = 5) -> list[str]:
+from playwright.async_api import async_playwright
+
+
+async def get_page_image_urls(url: str, scrolls: int = 3) -> list[str]:
     image_urls = []
 
     async with async_playwright() as p:
@@ -16,25 +19,30 @@ async def get_page_image_urls(url: str, scrolls: int = 5) -> list[str]:
             )
         )
 
-        await page.goto(url, wait_until="domcontentloaded", timeout=90000)
-        await page.wait_for_timeout(5000)
+        page.set_default_timeout(15000)
+        page.set_default_navigation_timeout(30000)
 
-        for _ in range(scrolls):
-            await page.mouse.wheel(0, 3000)
-            await page.wait_for_timeout(2000)
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_timeout(3000)
 
-        images = await page.locator("img").evaluate_all(
-            """
-            imgs => imgs
-                .map(img => img.src)
-                .filter(src => src && src.includes('pinimg.com'))
-            """
-        )
+            for _ in range(scrolls):
+                await page.mouse.wheel(0, 2500)
+                await page.wait_for_timeout(1000)
 
-        await browser.close()
+            images = await page.locator("img").evaluate_all(
+                """
+                imgs => imgs
+                    .map(img => img.src)
+                    .filter(src => src && src.includes('pinimg.com'))
+                """
+            )
 
-    for src in images:
-        if src not in image_urls:
-            image_urls.append(src)
+            for src in images:
+                if src not in image_urls:
+                    image_urls.append(src)
+
+        finally:
+            await browser.close()
 
     return image_urls
