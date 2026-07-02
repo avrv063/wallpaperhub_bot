@@ -90,6 +90,13 @@ async def scan_pinterest_sources(progress_callback=None) -> dict:
 
             try:
                 image_urls = await get_page_image_urls(page_url)
+                if progress_callback:
+                    await progress_callback(
+                        f"🔎 Pinterest {index}/{len(sources)}\n\n"
+                        f"Источник:\n{source_text}\n\n"
+                        f"Найдено ссылок: {len(image_urls)}\n"
+                        f"Сохраняю до {LIMIT_PER_SOURCE} новых..."
+                    )
                 random.shuffle(image_urls)
                 image_urls = image_urls[:LIMIT_PER_SOURCE]
 
