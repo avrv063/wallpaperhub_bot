@@ -3,6 +3,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 import aiohttp
+import random
 
 from repositories.sources import get_active_pinterest_sources
 from repositories.candidates import add_candidate, candidate_exists
@@ -11,7 +12,7 @@ from services.playwright_client import get_page_image_urls
 from services.scan_control import is_scan_cancelled
 
 CANDIDATES_DIR = Path("data/images/candidates")
-LIMIT_PER_SOURCE = 30
+LIMIT_PER_SOURCE = 10
 
 
 def ensure_dirs():
@@ -82,11 +83,14 @@ async def scan_pinterest_sources(progress_callback=None) -> dict:
 
             if progress_callback:
                 await progress_callback(
-                    f"Pinterest {index}/{len(sources)}: {source_text}"
+                    f"🔎 Pinterest {index}/{len(sources)}\n\n"
+                    f"Источник:\n{source_text}\n\n"
+                    f"Ищу картинки..."
                 )
 
             try:
                 image_urls = await get_page_image_urls(page_url)
+                random.shuffle(image_urls)
                 image_urls = image_urls[:LIMIT_PER_SOURCE]
 
                 result["images_found"] += len(image_urls)

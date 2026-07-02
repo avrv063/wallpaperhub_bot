@@ -36,6 +36,9 @@ async def scan_sources(callback: types.CallbackQuery):
         text += "\n\n⚠️ Ошибки:\n"
         text += "\n".join(result["errors"][:5])
 
+        if len(result["errors"]) > 5:
+            text += f"\n\n...и ещё {len(result['errors']) - 5} ошибок."
+
     await status_message.edit_text(text)
 
 @router.callback_query(F.data == "cancel_scan")

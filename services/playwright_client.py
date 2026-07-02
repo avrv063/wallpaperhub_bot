@@ -1,9 +1,6 @@
 from playwright.async_api import async_playwright
 
 
-from playwright.async_api import async_playwright
-
-
 async def get_page_image_urls(url: str, scrolls: int = 3) -> list[str]:
     image_urls = []
 
