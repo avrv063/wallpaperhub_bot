@@ -1,6 +1,27 @@
 from playwright.async_api import async_playwright
 
 
+def normalize_pinimg_url(url: str) -> str:
+    """
+    Pinterest часто отдаёт превью:
+    https://i.pinimg.com/236x/...
+    https://i.pinimg.com/474x/...
+    https://i.pinimg.com/736x/...
+
+    Пробуем заменить размер на originals.
+    """
+    if not url:
+        return url
+
+    url = url.split("?")[0]
+
+    for size in ["/236x/", "/474x/", "/564x/", "/736x/", "/1200x/"]:
+        if size in url:
+            return url.replace(size, "/originals/")
+
+    return url
+
+
 async def get_page_image_urls(url: str, scrolls: int = 3) -> list[str]:
     image_urls = []
 
@@ -30,14 +51,30 @@ async def get_page_image_urls(url: str, scrolls: int = 3) -> list[str]:
             images = await page.locator("img").evaluate_all(
                 """
                 imgs => imgs
-                    .map(img => img.src)
+                    .flatMap(img => {
+                        const urls = []
+
+                        if (img.src) urls.push(img.src)
+                        if (img.currentSrc) urls.push(img.currentSrc)
+
+                        if (img.srcset) {
+                            img.srcset.split(",").forEach(part => {
+                                const url = part.trim().split(" ")[0]
+                                if (url) urls.push(url)
+                            })
+                        }
+
+                        return urls
+                    })
                     .filter(src => src && src.includes('pinimg.com'))
                 """
             )
 
             for src in images:
-                if src not in image_urls:
-                    image_urls.append(src)
+                normalized = normalize_pinimg_url(src)
+
+                if normalized not in image_urls:
+                    image_urls.append(normalized)
 
         finally:
             await browser.close()
