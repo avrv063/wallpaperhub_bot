@@ -112,3 +112,11 @@ async def clear_collection_items(collection_id: int):
         )
 
         await db.commit()
+
+async def delete_collection_item(item_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "DELETE FROM collection_items WHERE id = ?",
+            (item_id,)
+        )
+        await db.commit()

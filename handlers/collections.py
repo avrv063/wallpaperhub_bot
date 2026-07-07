@@ -12,6 +12,7 @@ from repositories.collections import (
     add_candidate_to_collection,
     get_collection_items,
     clear_collection_items,
+    delete_collection_item,
 )
 from keyboards.collections import (
     choose_collection_keyboard,
@@ -249,7 +250,8 @@ async def publish_post_handler(callback: types.CallbackQuery):
         await callback.answer()
         return
 
-    file_paths = [item[2] for item in post["items"]]
+    items_to_publish = post["items"][:5]
+    file_paths = [item[2] for item in items_to_publish]
 
     caption = CUSTOM_CAPTIONS.get(collection_id, post["caption"])
 
@@ -260,8 +262,19 @@ async def publish_post_handler(callback: types.CallbackQuery):
     )
 
     if ok:
+        for item in items_to_publish:
+            item_id = item[0]
+            await delete_collection_item(item_id)
+
         CUSTOM_CAPTIONS.pop(collection_id, None)
-        await callback.message.answer("✅ Пост опубликован.")
+
+        remaining = len(post["items"]) - len(items_to_publish)
+
+        await callback.message.answer(
+            f"✅ Пост опубликован.\n\n"
+            f"Опубликовано: {len(items_to_publish)}\n"
+            f"Осталось в подборке: {remaining}"
+        )
     else:
         await callback.message.answer("❌ Не удалось опубликовать пост.")
 
