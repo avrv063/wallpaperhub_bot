@@ -24,11 +24,14 @@ from services.publisher import publish_collection
 from keyboards.collections import post_preview_keyboard
 
 router = Router()
-
+CUSTOM_CAPTIONS = {}
 
 class CreateCollection(StatesGroup):
     waiting_for_title = State()
     waiting_for_title_with_candidate = State()
+
+class EditPostCaption(StatesGroup):
+    waiting_for_caption = State()
 
 
 @router.callback_query(F.data.startswith("candidate_add:"))
@@ -184,6 +187,54 @@ async def build_post_handler(callback: types.CallbackQuery):
 
     await callback.answer()
 
+@router.callback_query(F.data.startswith("edit_post_caption:"))
+async def edit_post_caption_start(callback: types.CallbackQuery, state: FSMContext):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("Нет доступа.", show_alert=True)
+        return
+
+    collection_id = int(callback.data.split(":")[1])
+
+    await state.update_data(collection_id=collection_id)
+    await state.set_state(EditPostCaption.waiting_for_caption)
+
+    await callback.message.answer(
+        "✏️ Пришли новое описание поста одним сообщением.\n\n"
+        "Оно заменит автоматическое описание при публикации."
+    )
+    await callback.answer()
+
+@router.message(EditPostCaption.waiting_for_caption)
+async def edit_post_caption_finish(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("Нет доступа.")
+        return
+
+    data = await state.get_data()
+    collection_id = data["collection_id"]
+
+    new_caption = message.text.strip()
+
+    if not new_caption:
+        await message.answer("Описание пустое. Пришли текст ещё раз.")
+        return
+
+    CUSTOM_CAPTIONS[collection_id] = new_caption
+
+    await state.clear()
+
+    post = await build_post(collection_id)
+
+    if not post or not post["items"]:
+        await message.answer("В подборке нет изображений.")
+        return
+
+    await message.answer(
+        f"📝 Черновик обновлён:\n\n{new_caption}\n\n"
+        f"Изображений: {len(post['items'])}",
+        reply_markup=post_preview_keyboard(collection_id)
+    )
+
 @router.callback_query(F.data.startswith("publish_post:"))
 async def publish_post_handler(callback: types.CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
@@ -200,13 +251,16 @@ async def publish_post_handler(callback: types.CallbackQuery):
 
     file_paths = [item[2] for item in post["items"]]
 
+    caption = CUSTOM_CAPTIONS.get(collection_id, post["caption"])
+
     ok = await publish_collection(
         bot=callback.bot,
-        caption=post["caption"],
+        caption=caption,
         file_paths=file_paths
     )
 
     if ok:
+        CUSTOM_CAPTIONS.pop(collection_id, None)
         await callback.message.answer("✅ Пост опубликован.")
     else:
         await callback.message.answer("❌ Не удалось опубликовать пост.")

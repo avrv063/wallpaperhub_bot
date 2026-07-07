@@ -88,4 +88,10 @@ def post_preview_keyboard(collection_id: int):
                 callback_data=f"open_collection:{collection_id}"
             )
         ],
+        [
+            InlineKeyboardButton(
+                text="✏️ Изменить описание",
+                callback_data=f"edit_post_caption:{collection_id}"
+            )
+        ],
     ])
