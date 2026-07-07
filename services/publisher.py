@@ -30,9 +30,19 @@ async def publish_collection(bot: Bot, caption: str, file_paths: list[str]):
     )
 
     for path in existing_files:
+        ext = Path(path).suffix.lower()
+
+        if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+            ext = ".jpg"
+
+        public_filename = f"wallpaper_hub_{random.randint(100000, 999999)}{ext}"
+
         await bot.send_document(
             chat_id=CHANNEL_ID,
-            document=FSInputFile(path)
+            document=FSInputFile(
+                path,
+                filename=public_filename
+            )
         )
 
     return True
