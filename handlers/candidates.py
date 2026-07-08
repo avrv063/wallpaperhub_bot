@@ -30,7 +30,6 @@ async def send_next_candidate(message: types.Message):
         await send_next_candidate(message)
         return
 
-    photo = FSInputFile(file_path)
 
     if source_type == "telegram":
         source_name = f"🟦 Telegram\n@{source_username}"
@@ -46,11 +45,23 @@ async def send_next_candidate(message: types.Message):
         f"Осталось новых: {count}"
     )
 
-    await message.answer_photo(
-        photo=photo,
-        caption=caption,
-        reply_markup=candidate_keyboard(candidate_id)
-    )
+    file_size = os.path.getsize(file_path)
+
+    if file_size <= 10 * 1024 * 1024:
+        await message.answer_photo(
+            photo=FSInputFile(file_path),
+            caption=caption,
+            reply_markup=candidate_keyboard(candidate_id)
+        )
+    else:
+        await message.answer_document(
+            document=FSInputFile(file_path),
+            caption=(
+                f"{caption}\n\n"
+                f"⚠️ Файл больше 10 МБ, поэтому отправлен как документ."
+            ),
+            reply_markup=candidate_keyboard(candidate_id)
+        )
 
 
 @router.callback_query(F.data == "candidates")
